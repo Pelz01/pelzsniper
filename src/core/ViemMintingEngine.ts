@@ -1,59 +1,14 @@
 import {
     createPublicClient,
     createWalletClient,
-    http,
     encodeFunctionData,
     parseAbi,
-    type Chain,
     type Hash,
-    custom,
-    defineChain,
-    webSocket,
-    type Transport
+    custom
 } from 'viem';
-import { mainnet, sepolia, goerli, polygon, arbitrum, optimism, base } from 'viem/chains';
 import type { ContractInfo } from './ViemContractAnalyzer';
-
-// Chain lookup
-const CHAINS: Record<number, Chain> = {
-    1: mainnet,
-    11155111: sepolia,
-    5: goerli,
-    137: polygon,
-    42161: arbitrum,
-    10: optimism,
-    8453: base,
-    4326: defineChain({
-        id: 4326,
-        name: 'MegaETH Mainnet',
-        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-        rpcUrls: { default: { http: ['https://mainnet.megaeth.com/rpc'] } },
-        blockExplorers: { default: { name: 'Etherscan', url: 'https://mega.etherscan.com' } },
-    }),
-};
-
-const getChainById = (id: number): Chain => CHAINS[id] || mainnet;
-
-// Alchemy Transport with WSS preference for speed
-const getAlchemyTransport = (chainId: number): Transport => {
-    const alchemyKey = localStorage.getItem('pelz_alchemy_key');
-    if (!alchemyKey) return http();
-
-    const networks: Record<number, string> = {
-        1: 'eth-mainnet',
-        11155111: 'eth-sepolia',
-        137: 'polygon-mainnet',
-        42161: 'arb-mainnet',
-        10: 'opt-mainnet',
-        8453: 'base-mainnet',
-    };
-
-    const prefix = networks[chainId];
-    if (!prefix) return http();
-
-    // WSS for maximum speed
-    return webSocket(`wss://${prefix}.g.alchemy.com/v2/${alchemyKey}`);
-};
+import { getChainById } from '../config/chains';
+import { getProviderTransport } from '../config/transport';
 
 export interface MintTransaction {
     to: `0x${string}`;
@@ -78,7 +33,7 @@ export class ViemMintingEngine {
 
     constructor(chainId: number = 1) {
         const chain = getChainById(chainId);
-        const transport = getAlchemyTransport(chainId);
+        const transport = getProviderTransport(chainId);
 
         this.publicClient = createPublicClient({
             chain,

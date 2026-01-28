@@ -33,8 +33,13 @@ export class CommandParser {
                 }
             } else if (token.startsWith('-')) {
                 const flagName = token.slice(1);
-                // Short flags are usually booleans or single char params. Simplified here.
-                flags[flagName] = true;
+                // Check if next token is a value (like long flags do)
+                if (i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {
+                    flags[flagName] = tokens[i + 1];
+                    i++;
+                } else {
+                    flags[flagName] = true;
+                }
             } else {
                 args.push(token);
             }

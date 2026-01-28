@@ -1,24 +1,10 @@
 import {
     createPublicClient,
     http,
-    type Chain,
     parseAbi,
     custom
 } from 'viem';
-import { mainnet, sepolia, goerli, polygon, arbitrum, optimism, base } from 'viem/chains';
-
-// Chain lookup
-const CHAINS: Record<number, Chain> = {
-    1: mainnet,
-    11155111: sepolia,
-    5: goerli,
-    137: polygon,
-    42161: arbitrum,
-    10: optimism,
-    8453: base,
-};
-
-const getChainById = (id: number): Chain => CHAINS[id] || mainnet;
+import { getChainById } from '../config/chains';
 
 // Parse ABIs for type safety
 const nameAbi = parseAbi(['function name() view returns (string)']);
