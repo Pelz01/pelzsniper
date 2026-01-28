@@ -1,73 +1,55 @@
-# React + TypeScript + Vite
+# ⚡ PelzSniper
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**High-Frequency NFT Minting Terminal**
 
-Currently, two official plugins are available:
+PelzSniper is a powerful, terminal-based NFT minting bot that runs directly in your browser. It effectively turns your browser into a command-line interface for interacting with EVM blockchains (Mainnet, Base, Arbitrum, Optimism, etc.) with ultra-low latency.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Features
 
-## React Compiler
+*   **Burner Wallet Support**: Import private keys for instant, popup-free signing.
+*   **Multi-Provider RPC**: Support for Alchemy, Infura, and Ankr (HTTP & WebSocket).
+*   **Monitor Mode**: Auto-snipe sales the moment they flip active.
+*   **Turbo Mode**: Skip safety checks and use high-priority gas for hype drops.
+*   **Platform Detection**: Automatically handles mints for OpenSea, MagicEden, Manifold, NFTs2Me, and many others.
+*   **Multi-Chain**: Seamlessly switch between Mainnet, Base, Sepolia, Arbitrum, etc.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 📦 Installation
 
-## Expanding the ESLint configuration
+To execute the project locally, you need [Node.js](https://nodejs.org/) installed.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1.  **Clone the Repository**
+    ```bash
+    git clone https://github.com/Pelz01/pelzsniper.git
+    cd pelzsniper
+    ```
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+2.  **Install Dependencies**
+    ```bash
+    npm install
+    ```
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+3.  **Start the Bot**
+    ```bash
+    npm run dev
+    ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+4.  **Open in Browser**
+    Visit `http://localhost:5173`. You will see the terminal interface.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 📖 Usage
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Quick Start
+1.  **Generate Wallet**: Type `wallet new` to create a burner wallet.
+2.  **Config Provider**: Type `config provider alchemy YOUR_KEY` for speed.
+3.  **Load Contract**: Type `contract load 0x...` to target an NFT.
+4.  **Mint**: Type `mint 1` to buy.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+For a full guide, check out the [User Guide](USER_GUIDE.md) or type `guide` inside the terminal.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## ⚠️ Disclaimer
+
+This tool is for educational purposes. Use at your own risk. Private keys are stored in `sessionStorage` and are cleared when the tab is closed. Always use a burner wallet with only the funds you are willing to risk.
