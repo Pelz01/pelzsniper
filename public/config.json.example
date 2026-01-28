@@ -1,0 +1,6 @@
+{
+  "provider": "alchemy",
+  "apiKey": "YOUR_ALCHEMY_API_KEY_HERE",
+  "privateKey": "",
+  "defaultChain": 1
+}

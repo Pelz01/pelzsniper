@@ -4,8 +4,9 @@ import { CommandParser } from './CommandParser';
 import { useWalletStore } from '../store/walletStore';
 import { ViemContractAnalyzer, type ContractInfo } from './ViemContractAnalyzer';
 import { ViemMintingEngine } from './ViemMintingEngine';
-import { NETWORKS } from '../config/networks';
+import { NETWORKS, type NetworkConfig } from '../config/networks';
 import { getPlatformManager, initializePlatformModules, type PlatformContractInfo } from './platforms';
+import { pingMultiple, getLatencyColor } from '../utils/ping';
 
 export class TerminalController {
     private term: Terminal;
@@ -238,6 +239,10 @@ export class TerminalController {
                     break;
                 case 'config':
                     await this.handleConfig(args);
+                    break;
+                case 'ping':
+                case 'p': // Alias
+                    await this.handlePing(args);
                     break;
                 default:
                     this.error(`Unknown command: ${command}`);
@@ -841,6 +846,82 @@ export class TerminalController {
             await this.handleConfig(['provider', 'alchemy', args[1] || '']);
         } else {
             this.info('Usage: config provider [alchemy|infura|ankr] <key>');
+        }
+    }
+
+    private async handlePing(args: string[]) {
+        const { walletInfo } = useWalletStore.getState();
+        const currentChainId = walletInfo?.chainId || 1;
+        const providerName = localStorage.getItem('pelz_provider_name');
+        const providerKey = localStorage.getItem('pelz_provider_key');
+
+        // Determine URL to test
+        let testUrl: string | undefined;
+        if (args[0]) {
+            testUrl = args[0];
+        } else {
+            // Use current provider
+            if (providerName && providerKey) {
+                const networkMap: Record<string, Record<number, string>> = {
+                    'alchemy': {
+                        1: 'eth-mainnet',
+                        8453: 'base-mainnet',
+                        42161: 'arb-mainnet',
+                    },
+                    'infura': {
+                        1: 'mainnet',
+                        8453: 'base-mainnet',
+                        42161: 'arbitrum-mainnet',
+                    }
+                };
+                const prefix = networkMap[providerName]?.[currentChainId];
+                if (prefix) {
+                    if (providerName === 'alchemy') {
+                        testUrl = `https://${prefix}.g.alchemy.com/v2/${providerKey}`;
+                    } else if (providerName === 'infura') {
+                        testUrl = `https://${prefix}.infura.io/v3/${providerKey}`;
+                    }
+                }
+            }
+
+            if (!testUrl) {
+                // Fallback to public RPC from NETWORKS
+                const networks = Object.values(NETWORKS);
+                const network = networks.find((n: NetworkConfig) => n.id === currentChainId);
+                testUrl = network?.rpc;
+            }
+        }
+
+        if (!testUrl) {
+            this.error('No RPC URL available to test.');
+            return;
+        }
+
+        this.info(`Testing latency to: ${testUrl.split('/')[2]}...`);
+        this.term.writeln('');
+
+        try {
+            const stats = await pingMultiple(testUrl, 5);
+
+            if (stats.failures === stats.total) {
+                this.error('All pings failed. Check your connection or API key.');
+                return;
+            }
+
+            const color = getLatencyColor(stats.avg);
+            const colorCode = color === 'green' ? '32' : color === 'yellow' ? '33' : '31';
+
+            this.term.writeln(this.color('  LATENCY TEST RESULTS', '1;36'));
+            this.separator();
+            this.tableRow('Average', `${stats.avg}ms`, 15);
+            this.tableRow('Min', `${stats.min}ms`, 15);
+            this.tableRow('Max', `${stats.max}ms`, 15);
+            this.tableRow('Successful', `${stats.total - stats.failures}/${stats.total}`, 15);
+            this.term.writeln('');
+            this.term.writeln(this.color(`  Status: ${color === 'green' ? '🟢 Excellent' : color === 'yellow' ? '🟡 Acceptable' : '🔴 Slow'}`, colorCode));
+            this.term.writeln('');
+        } catch (e: any) {
+            this.error(`Ping failed: ${e.message}`);
         }
     }
 }

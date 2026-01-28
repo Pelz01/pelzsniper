@@ -170,6 +170,7 @@ The sale starts in 5 minutes. You don't want to spam click.
 ### System
 | Command | Description |
 | :--- | :--- |
+| `ping` | Test RPC latency (current or custom URL) |
 | `clear` | Clear terminal screen |
 | `exit` | Close the CLI bot |
 
