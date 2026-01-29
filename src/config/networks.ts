@@ -83,5 +83,13 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         rpc: "https://mainnet.megaeth.com/rpc",
         explorer: "https://mega.etherscan.com",
         nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }
+    },
+    ink: {
+        id: 57073,
+        name: "Ink",
+        hex: "0xdef1",
+        rpc: "https://rpc-gel.inkonchain.com",
+        explorer: "https://explorer.inkonchain.com",
+        nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }
     }
 };

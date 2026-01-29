@@ -244,6 +244,9 @@ export class TerminalController {
                 case 'p': // Alias
                     await this.handlePing(args);
                     break;
+                case 'rpc':
+                    this.handleRpc();
+                    break;
                 default:
                     this.error(`Unknown command: ${command}`);
                     this.term.writeln(this.color('  Type "?" for help.', '90'));
@@ -847,6 +850,63 @@ export class TerminalController {
         } else {
             this.info('Usage: config provider [alchemy|infura|ankr] <key>');
         }
+    }
+
+    private handleRpc() {
+        const providerName = localStorage.getItem('pelz_provider_name');
+        const providerKey = localStorage.getItem('pelz_provider_key');
+        const { walletInfo } = useWalletStore.getState();
+        const currentChainId = walletInfo?.chainId || 1;
+
+        this.term.writeln('');
+        this.term.writeln(this.color('  ⚡ RPC STATUS', '1;36'));
+        this.separator();
+
+        if (providerName && providerKey) {
+            this.tableRow('Provider', providerName.toUpperCase(), 15);
+            this.tableRow('API Key', `${providerKey.substring(0, 6)}...${providerKey.slice(-4)}`, 15);
+            this.tableRow('Mode', 'Premium (Fast)', 15);
+
+            // Show the actual URL being used
+            const networkMap: Record<string, Record<number, string>> = {
+                'alchemy': {
+                    1: 'eth-mainnet',
+                    8453: 'base-mainnet',
+                    42161: 'arb-mainnet',
+                },
+                'infura': {
+                    1: 'mainnet',
+                    8453: 'base-mainnet',
+                    42161: 'arbitrum-mainnet',
+                }
+            };
+            const prefix = networkMap[providerName]?.[currentChainId];
+            if (prefix) {
+                let url = '';
+                if (providerName === 'alchemy') {
+                    url = `${prefix}.g.alchemy.com`;
+                } else if (providerName === 'infura') {
+                    url = `${prefix}.infura.io`;
+                }
+                this.tableRow('Endpoint', url, 15);
+            } else {
+                this.tableRow('Endpoint', '(fallback to public)', 15);
+            }
+        } else {
+            this.tableRow('Provider', 'Public RPC', 15);
+            this.tableRow('Mode', 'Free (Slower)', 15);
+
+            const networks = Object.values(NETWORKS);
+            const network = networks.find((n: NetworkConfig) => n.id === currentChainId);
+            if (network) {
+                this.tableRow('Endpoint', new URL(network.rpc).hostname, 15);
+            }
+        }
+
+        this.tableRow('Chain ID', currentChainId.toString(), 15);
+        this.term.writeln('');
+        this.term.writeln(this.color('  Tip: Use "ping" to test latency, "config provider" to change.', '90'));
+        this.term.writeln('');
     }
 
     private async handlePing(args: string[]) {

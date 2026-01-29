@@ -138,6 +138,7 @@ async function main() {
                 log('  network <id>    Switch chain');
                 log('  networks        List chains');
                 log('  config          Show current config');
+                log('  rpc             Show RPC provider status');
                 log('  ping            Test RPC latency');
                 log('  exit            Quit');
                 log('');
@@ -239,6 +240,23 @@ async function main() {
                 log(`  Provider:  ${config.provider || 'public'}`);
                 log(`  API Key:   ${config.apiKey ? config.apiKey.slice(0, 6) + '...' : 'none'}`);
                 log(`  Chain:     ${config.defaultChain || 1}`);
+                log('');
+            }
+            else if (cmd === 'rpc') {
+                log('');
+                log(`${colors.bold}  ⚡ RPC STATUS${colors.reset}`);
+                log(`${colors.gray}  ─────────────────────────────${colors.reset}`);
+                if (config.provider && config.apiKey) {
+                    log(`  Provider:  ${colors.green}${config.provider.toUpperCase()}${colors.reset}`);
+                    log(`  API Key:   ${config.apiKey.slice(0, 6)}...${config.apiKey.slice(-4)}`);
+                    log(`  Mode:      Premium (Fast)`);
+                } else {
+                    log(`  Provider:  ${colors.yellow}Public RPC${colors.reset}`);
+                    log(`  Mode:      Free (Slower)`);
+                }
+                log(`  Chain ID:  ${currentChainId}`);
+                log('');
+                log(`${colors.gray}  Tip: Edit config.json to change provider${colors.reset}`);
                 log('');
             }
             else if (cmd === 'ping') {

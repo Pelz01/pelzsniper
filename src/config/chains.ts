@@ -42,6 +42,18 @@ export const megaeth = defineChain({
     },
 });
 
+export const ink = defineChain({
+    id: 57073,
+    name: 'Ink',
+    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    rpcUrls: {
+        default: { http: ['https://rpc-gel.inkonchain.com'] },
+    },
+    blockExplorers: {
+        default: { name: 'Ink Explorer', url: 'https://explorer.inkonchain.com' },
+    },
+});
+
 // Master chain lookup map
 export const CHAINS: Record<number, Chain> = {
     1: mainnet,
@@ -54,6 +66,7 @@ export const CHAINS: Record<number, Chain> = {
     2741: abstract,
     999: hyperliquid,
     4326: megaeth,
+    57073: ink,
 };
 
 /**
