@@ -35,6 +35,7 @@ interface Config {
     apiKey?: string;
     privateKey?: string;
     defaultChain?: number;
+    customRpc?: string;
 }
 
 // Load config from file
@@ -246,7 +247,12 @@ async function main() {
                 log('');
                 log(`${colors.bold}  ⚡ RPC STATUS${colors.reset}`);
                 log(`${colors.gray}  ─────────────────────────────${colors.reset}`);
-                if (config.provider && config.apiKey) {
+                if (config.customRpc) {
+                    log(`  Provider:  ${colors.green}Custom RPC${colors.reset}`);
+                    log(`  Mode:      Custom (QuickNode, etc.)`);
+                    const hostname = config.customRpc.replace(/^https?:\/\//, '').split('/')[0];
+                    log(`  Endpoint:  ${hostname.length > 35 ? hostname.substring(0, 35) + '...' : hostname}`);
+                } else if (config.provider && config.apiKey) {
                     log(`  Provider:  ${colors.green}${config.provider.toUpperCase()}${colors.reset}`);
                     log(`  API Key:   ${config.apiKey.slice(0, 6)}...${config.apiKey.slice(-4)}`);
                     log(`  Mode:      Premium (Fast)`);
@@ -256,11 +262,12 @@ async function main() {
                 }
                 log(`  Chain ID:  ${currentChainId}`);
                 log('');
-                log(`${colors.gray}  Tip: Edit config.json to change provider${colors.reset}`);
+                log(`${colors.gray}  Tip: Set customRpc in config.json for QuickNode${colors.reset}`);
                 log('');
             }
             else if (cmd === 'ping') {
-                const testUrl = args[0] || (config.provider && config.apiKey ?
+                // Priority: args[0] > customRpc > provider
+                const testUrl = args[0] || config.customRpc || (config.provider && config.apiKey ?
                     (config.provider === 'alchemy' ? `https://eth-mainnet.g.alchemy.com/v2/${config.apiKey}` :
                         config.provider === 'infura' ? `https://mainnet.infura.io/v3/${config.apiKey}` : undefined) : undefined);
 

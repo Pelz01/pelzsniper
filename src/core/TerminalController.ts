@@ -847,8 +847,49 @@ export class TerminalController {
             // Backward compatibility
         } else if (subCmd === 'alchemy') {
             await this.handleConfig(['provider', 'alchemy', args[1] || '']);
+        } else if (subCmd === 'rpc') {
+            const url = args[1];
+            const { walletInfo } = useWalletStore.getState();
+            const currentChainId = walletInfo?.chainId || 1;
+
+            if (!url) {
+                // Show current custom RPC
+                const customRpc = localStorage.getItem(`pelz_custom_rpc_${currentChainId}`);
+                this.info('Usage: config rpc <url>     Set custom RPC for current chain');
+                this.info('       config rpc clear     Remove custom RPC');
+                this.term.writeln('');
+                if (customRpc) {
+                    this.tableRow('Chain ID', currentChainId.toString(), 15);
+                    this.tableRow('Custom RPC', customRpc.length > 40 ? customRpc.substring(0, 40) + '...' : customRpc, 15);
+                } else {
+                    this.term.writeln('  No custom RPC set for this chain.');
+                }
+                this.term.writeln('');
+                return;
+            }
+
+            if (url === 'clear') {
+                localStorage.removeItem(`pelz_custom_rpc_${currentChainId}`);
+                this.success(`Custom RPC cleared for chain ${currentChainId}. Using default provider.`);
+            } else {
+                // Validate URL format
+                if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('wss://')) {
+                    this.error('Invalid URL. Must start with http://, https://, or wss://');
+                    return;
+                }
+
+                localStorage.setItem(`pelz_custom_rpc_${currentChainId}`, url);
+                this.success(`Custom RPC saved for chain ${currentChainId}! ⚡`);
+                this.info(`Endpoint: ${url.length > 50 ? url.substring(0, 50) + '...' : url}`);
+                this.info('Re-connecting to apply changes...');
+
+                if (walletInfo) {
+                    await this.initializeEngines(currentChainId);
+                }
+            }
         } else {
             this.info('Usage: config provider [alchemy|infura|ankr] <key>');
+            this.info('       config rpc <url>   (QuickNode, custom nodes)');
         }
     }
 
@@ -857,12 +898,21 @@ export class TerminalController {
         const providerKey = localStorage.getItem('pelz_provider_key');
         const { walletInfo } = useWalletStore.getState();
         const currentChainId = walletInfo?.chainId || 1;
+        const customRpc = localStorage.getItem(`pelz_custom_rpc_${currentChainId}`);
 
         this.term.writeln('');
         this.term.writeln(this.color('  ⚡ RPC STATUS', '1;36'));
         this.separator();
 
-        if (providerName && providerKey) {
+        // Check custom RPC first (QuickNode, etc.)
+        if (customRpc) {
+            this.tableRow('Provider', 'Custom RPC', 15);
+            this.tableRow('Mode', 'Custom (QuickNode, etc.)', 15);
+            const hostname = customRpc.startsWith('wss://') ? customRpc.replace('wss://', '').split('/')[0] :
+                customRpc.startsWith('https://') ? customRpc.replace('https://', '').split('/')[0] :
+                    customRpc.split('/')[2] || customRpc;
+            this.tableRow('Endpoint', hostname.length > 30 ? hostname.substring(0, 30) + '...' : hostname, 15);
+        } else if (providerName && providerKey) {
             this.tableRow('Provider', providerName.toUpperCase(), 15);
             this.tableRow('API Key', `${providerKey.substring(0, 6)}...${providerKey.slice(-4)}`, 15);
             this.tableRow('Mode', 'Premium (Fast)', 15);
@@ -878,6 +928,13 @@ export class TerminalController {
                     1: 'mainnet',
                     8453: 'base-mainnet',
                     42161: 'arbitrum-mainnet',
+                },
+                'ankr': {
+                    1: 'eth',
+                    8453: 'base',
+                    42161: 'arbitrum',
+                    137: 'polygon',
+                    10: 'optimism',
                 }
             };
             const prefix = networkMap[providerName]?.[currentChainId];
@@ -887,6 +944,8 @@ export class TerminalController {
                     url = `${prefix}.g.alchemy.com`;
                 } else if (providerName === 'infura') {
                     url = `${prefix}.infura.io`;
+                } else if (providerName === 'ankr') {
+                    url = `rpc.ankr.com/${prefix}`;
                 }
                 this.tableRow('Endpoint', url, 15);
             } else {
@@ -905,7 +964,7 @@ export class TerminalController {
 
         this.tableRow('Chain ID', currentChainId.toString(), 15);
         this.term.writeln('');
-        this.term.writeln(this.color('  Tip: Use "ping" to test latency, "config provider" to change.', '90'));
+        this.term.writeln(this.color('  Tip: Use "config rpc <url>" for QuickNode, "ping" to test.', '90'));
         this.term.writeln('');
     }
 
@@ -914,14 +973,19 @@ export class TerminalController {
         const currentChainId = walletInfo?.chainId || 1;
         const providerName = localStorage.getItem('pelz_provider_name');
         const providerKey = localStorage.getItem('pelz_provider_key');
+        const customRpc = localStorage.getItem(`pelz_custom_rpc_${currentChainId}`);
 
         // Determine URL to test
         let testUrl: string | undefined;
         if (args[0]) {
             testUrl = args[0];
         } else {
-            // Use current provider
-            if (providerName && providerKey) {
+            // Check custom RPC first (QuickNode)
+            if (customRpc) {
+                testUrl = customRpc.startsWith('wss://') ? customRpc.replace('wss://', 'https://') : customRpc;
+            }
+            // Then check provider
+            else if (providerName && providerKey) {
                 const networkMap: Record<string, Record<number, string>> = {
                     'alchemy': {
                         1: 'eth-mainnet',
@@ -932,6 +996,13 @@ export class TerminalController {
                         1: 'mainnet',
                         8453: 'base-mainnet',
                         42161: 'arbitrum-mainnet',
+                    },
+                    'ankr': {
+                        1: 'eth',
+                        8453: 'base',
+                        42161: 'arbitrum',
+                        137: 'polygon',
+                        10: 'optimism',
                     }
                 };
                 const prefix = networkMap[providerName]?.[currentChainId];
@@ -940,6 +1011,8 @@ export class TerminalController {
                         testUrl = `https://${prefix}.g.alchemy.com/v2/${providerKey}`;
                     } else if (providerName === 'infura') {
                         testUrl = `https://${prefix}.infura.io/v3/${providerKey}`;
+                    } else if (providerName === 'ankr') {
+                        testUrl = `https://rpc.ankr.com/${prefix}/${providerKey}`;
                     }
                 }
             }

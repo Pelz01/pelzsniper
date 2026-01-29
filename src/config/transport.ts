@@ -9,6 +9,19 @@ import { http, webSocket, fallback, type Transport } from 'viem';
  * Checks localStorage for provider name and API key
  */
 export const getProviderTransport = (chainId: number): Transport => {
+    // Check for custom RPC override first (QuickNode, custom nodes, etc.)
+    const customRpc = localStorage.getItem(`pelz_custom_rpc_${chainId}`);
+    if (customRpc) {
+        // Support WebSocket URLs
+        if (customRpc.startsWith('wss://')) {
+            return fallback([
+                webSocket(customRpc),
+                http(customRpc.replace('wss://', 'https://'))
+            ]);
+        }
+        return http(customRpc);
+    }
+
     // Check for specific provider override
     const providerName = localStorage.getItem('pelz_provider_name');
     const apiKey = localStorage.getItem('pelz_provider_key') || localStorage.getItem('pelz_alchemy_key');
