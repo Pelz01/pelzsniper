@@ -14,6 +14,10 @@ export const CHAIN_MAPPINGS = {
         42161: 'arb-mainnet',
         10: 'opt-mainnet',
         8453: 'base-mainnet',
+        57073: 'ink-mainnet',
+        2741: 'abstract-mainnet',
+        4326: 'megaeth-mainnet', // Guessing subdomain
+        999: 'hyperliquid-mainnet',
     } as Record<number, string>,
 
     infura: {
@@ -23,6 +27,7 @@ export const CHAIN_MAPPINGS = {
         42161: 'arbitrum-mainnet',
         10: 'optimism-mainnet',
         8453: 'base-mainnet',
+        // Infura does not widely support Ink/Abstract yet
     } as Record<number, string>,
 
     ankr: {
@@ -32,15 +37,24 @@ export const CHAIN_MAPPINGS = {
         42161: 'arbitrum',
         10: 'optimism',
         8453: 'base',
+        // Ankr returns 403 for these on standard plans
+        // 57073: 'ink',
+        // 2741: 'abstract',
+        // 999: 'hyperliquid',
+        // 4326: 'megaeth',
     } as Record<number, string>,
 
     quicknode: {
         1: '',              // Mainnet: endpoint.quiknode.pro
         8453: 'base-mainnet',
         42161: 'arbitrum-mainnet',
-        137: 'polygon-mainnet',
+        137: 'matic',       // User confirmed 'matic'
         10: 'optimism-mainnet',
         11155111: 'eth-sepolia',
+        57073: 'ink-mainnet',
+        2741: 'abstract-mainnet',
+        999: 'hype-mainnet', // User confirmed 'hype-mainnet'
+        4326: 'megaeth-mainnet',
     } as Record<number, string>,
 };
 
@@ -84,9 +98,13 @@ export function buildProviderUrls(provider: string, chainId: number): { http?: s
             const chainPrefix = CHAIN_MAPPINGS.quicknode[chainId];
             if (chainPrefix === undefined || !config.endpoint || !config.token) return {};
             const domain = chainPrefix ? `${config.endpoint}.${chainPrefix}.quiknode.pro` : `${config.endpoint}.quiknode.pro`;
+
+            // Special case for Hyperliquid EVM suffix
+            const suffix = chainId === 999 ? '/evm' : '';
+
             return {
-                http: `https://${domain}/${config.token}`,
-                wss: `wss://${domain}/${config.token}`,
+                http: `https://${domain}/${config.token}${suffix}`,
+                wss: `wss://${domain}/${config.token}${suffix}`,
             };
         }
 

@@ -1172,14 +1172,11 @@ export class TerminalController {
             return;
         }
 
-        // Test chains
-        const testChains = [
-            { id: 1, name: 'Ethereum' },
-            { id: 8453, name: 'Base' },
-            { id: 42161, name: 'Arbitrum' },
-            { id: 137, name: 'Polygon' },
-            { id: 10, name: 'Optimism' },
-        ];
+        // Import NETWORKS
+        const { NETWORKS } = await import('../config/networks');
+
+        // Test all configured networks (excluding testnets)
+        const testChains = Object.values(NETWORKS).filter(n => !n.name.toLowerCase().includes('sepolia'));
 
         this.term.writeln('');
         this.term.writeln(this.color('  LATENCY BENCHMARK', '1;36'));
@@ -1203,57 +1200,81 @@ export class TerminalController {
 
         // Test each chain
         for (const chain of testChains) {
-            let row = `  ${chain.name}`.padEnd(14);
+            // Clean up name
+            let displayName = chain.name
+                .replace(' Mainnet', '')
+                .replace(' One', '')
+                .replace(' EVM', '');
 
-            // Find fastest for this chain
-            let fastest = { provider: '', latency: Infinity };
-
-            for (const name of providerNames) {
+            // Prepare promises
+            const tests = providerNames.map(async (name) => {
                 const urls = buildProviderUrls(name, chain.id);
-
-                if (!urls.http) {
-                    row += 'N/A'.padEnd(colWidth);
-                    results[name][chain.id] = null;
-                    continue;
-                }
+                if (!urls.http) return { name, latency: null, status: 'N/A' };
 
                 try {
                     const start = performance.now();
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+
                     const response = await fetch(urls.http, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 }),
+                        signal: controller.signal
                     });
+                    clearTimeout(timeoutId);
 
-                    if (!response.ok) throw new Error('Failed');
-
-                    const latency = Math.round(performance.now() - start);
-                    results[name][chain.id] = latency;
-
-                    if (latency < fastest.latency) {
-                        fastest = { provider: name, latency };
+                    if (!response.ok) {
+                        return { name, latency: null, status: `${response.status}` };
                     }
 
-                    // Color code latency
-                    const color = latency < 60 ? '32' : latency < 150 ? '33' : '31';
-                    row += this.color(`${latency}ms`.padEnd(colWidth), color);
-                } catch {
-                    row += this.color('ERR'.padEnd(colWidth), '31');
-                    results[name][chain.id] = null;
+                    const latency = Math.round(performance.now() - start);
+                    return { name, latency, status: `${latency}ms` };
+                } catch (e: any) {
+                    const isDns = e.message.includes('Failed to fetch') || e.cause?.code === 'ENOTFOUND';
+                    return { name, latency: null, status: isDns ? 'DNS' : 'ERR' };
                 }
-            }
+            });
 
-            // Mark fastest with ⚡
-            if (fastest.provider && fastest.latency < Infinity) {
-                const idx = 14 + providerNames.indexOf(fastest.provider) * colWidth;
-                row = row.substring(0, idx) + this.color('⚡ ', '33') + row.substring(idx);
+            const currentChainResults = await Promise.all(tests);
+
+            // Find fastest (valid latency only)
+            const validResults = currentChainResults.filter(r => r.latency !== null) as { name: string, latency: number }[];
+            const fastest = validResults.sort((a, b) => a.latency - b.latency)[0];
+
+            // Build Row
+            let row = `  ${displayName}`.padEnd(14);
+
+            for (const result of currentChainResults) {
+                // Update the outer results matrix
+                results[result.name][chain.id] = result.latency;
+
+                const isFastest = fastest && result.name === fastest.name;
+                const cellText = result.status;
+                let coloredCell = cellText;
+
+                if (result.latency !== null) {
+                    // Latency colors
+                    const color = result.latency < 100 ? '32' : result.latency < 250 ? '33' : '31';
+                    coloredCell = this.color(cellText.padEnd(colWidth), color);
+                } else {
+                    // Error colors
+                    coloredCell = this.color(cellText.padEnd(colWidth), result.status === 'N/A' ? '90' : '31');
+                }
+
+                // Add bolt if fastest
+                if (isFastest) {
+                    coloredCell = this.color(`${cellText} ⚡`.padEnd(colWidth), '32');
+                }
+
+                row += coloredCell;
             }
 
             this.term.writeln(row);
         }
 
         this.term.writeln('');
-        this.term.writeln(this.color('  ⚡ = Fastest   🟢 <60ms   🟡 60-150ms   🔴 >150ms', '90'));
+        this.term.writeln(this.color('  ⚡ = Fastest   🟢 <100ms   🟡 100-250ms   🔴 >250ms', '90'));
         this.term.writeln('');
     }
 }
