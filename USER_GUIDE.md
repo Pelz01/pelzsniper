@@ -1,168 +1,189 @@
-# ⚡ PelzSniper: The Ultimate Setup Handbook
+# ⚡ PelzSniper User Guide
 
-**Welcome.** This guide will take you from "Zero" to "Sniping" in 5 minutes, even if you have never used a terminal before.
+Welcome to **PelzSniper**! This is a tool that helps you mint NFTs extremely fast. It works directly in a special "terminal" window on your computer.
 
-We will cover everything: Download, Installation, Setup, and your First Mint.
-
----
-
-## 🛠️ Phase 1: Installing the Tools
-
-Before we start, your computer needs two engines to run this bot.
-
-### 1. Install Node.js
-This is the engine that runs the code.
-*   **Download Link:** [nodejs.org](https://nodejs.org/en/download/prebuilt-installer)
-*   **Which version?** Choose **"LTS"** (Long Term Support).
-*   **How to install:** Download the installer (.msi for Windows, .pkg for Mac) and click "Next" until finished.
-
-### 2. Install Git
-This tool downloads the code from the internet.
-*   **Download Link:** [git-scm.com](https://git-scm.com/downloads)
-*   **How to install:** Download and install. You can leave all settings as default.
-
-### 3. Install VS Code (Recommended)
-This is the best tool to view the code and run the terminal.
-*   **Download Link:** [code.visualstudio.com](https://code.visualstudio.com/)
+Follow this guide to get started.
 
 ---
 
-## 📥 Phase 2: Downloading the Bot
+## 1. Installation (First Time Only)
 
-Now we will get the PelzSniper code onto your computer.
+Before you can run the bot, you need two things installed on your computer: **Node.js** and **Git**.
 
-1.  **Open VS Code.**
-2.  Press **`Ctrl + ~`** (Control key + Tilde key). This opens the **Terminal** at the bottom of the screen.
-3.  Copy and paste this command into that terminal and press Enter:
-
-    ```bash
-    git clone https://github.com/Pelz01/pelzsniper.git
-    ```
-
-4.  Now, we need to "enter" the folder we just downloaded. Type this:
-
-    ```bash
-    cd pelzsniper
-    ```
-
-5.  Finally, install the robot's brain (dependencies). This might take 1 minute:
-
-    ```bash
-    npm install
-    ```
-
-**🎉 Success!** The bot is now installed.
+1.  **Download Node.js**: Go to [nodejs.org](https://nodejs.org/) and download the "LTS" version.
+2.  **Download Git**: Go to [git-scm.com](https://git-scm.com/).
+3.  **Clone the Repo**:
+    *   Open your terminal (Command Prompt or Terminal).
+    *   Run this command:
+        ```bash
+        git clone https://github.com/Pelz01/pelzsniper.git
+        ```
+    *   Enter the folder:
+        ```bash
+        cd pelzsniper
+        ```
+4.  **Install Dependencies**:
+    *   Type this command and hit Enter:
+        ```bash
+        npm install
+        ```
+    *   Wait for it to finish.
 
 ---
 
-## 🚀 Phase 3: Launching the Bot
+## 2. Starting the Bot
 
-You have two ways to run the bot. Choose the one you like best.
+Every time you want to use the bot, do this:
 
-### Option A: Browser Mode (Easiest) 🌐
-*Best for beginners. It runs in a nice window in Chrome.*
-
-1.  In your VS Code terminal, type:
+1.  Open the folder in your terminal.
+2.  Run this command:
     ```bash
     npm run dev
     ```
-2.  You will see a link like `http://localhost:5173`. **Ctrl + Click** it.
-3.  A website opens with a black terminal. **Click anywhere inside the black box** to start typing.
-
-### Option B: CLI Mode (Advanced) 🖥️
-*Best for faster typing or running on a server/VPS.*
-
-1.  First, we need to create a config file. Run this:
-    ```bash
-    cp public/config.json.example public/config.json
-    ```
-2.  In the VS Code file explorer (left side), find `public/config.json` and click it.
-3.  Add your keys (we will explain keys in Phase 4).
-4.  Run the bot:
-    ```bash
-    npm run cli
-    ```
+3.  A website will open (usually `http://localhost:5173`).
+4.  You will see a black **Terminal** window on the screen. **Click inside it** to start typing.
 
 ---
 
-## 🔑 Phase 4: Keys & Wallets (Crucial)
+## 3. Creating a "Burner Wallet" (Recommended)
 
-To use the bot, you need a **Wallet** (to pay) and an **RPC Key** (for speed).
+For safety and speed, you should use a separate wallet just for this bot. This is called a "Burner Wallet".
 
-### 1. Create a "Burner Wallet"
-**Never use your main vault.** Always use a fresh wallet with only the ETH you plan to spend.
+1.  Type this cmd:
+    ```bash
+    wallet new
+    ```
+2.  The bot will generate a **new address** and a **Private Key**.
+3.  **🔴 IMPORTANT:** Copy that Private Key and save it somewhere safe! The bot will not show it again.
+4.  **Send ETH** (or Base ETH, etc.) to the new "Address" shown on the screen. This is the money the bot will use to mint.
 
-*   **In the Bot:** Type `wallet new`.
-*   **Action:** It will show you a **Private Key**. Copy it and save it in a password manager.
-*   **Funding:** Send some ETH (e.g., 0.05 ETH) to the **Address** shown.
-
-### 2. Get Super Speed (RPC Keys)
-Public connections are slow. To win, you need a fast lane.
-1.  Go to [Alchemy.com](https://www.alchemy.com/) (Free).
-2.  Sign up and click "Apps" -> "Create App" -> Chain: "Ethereum".
-3.  Click "API Key" and copy the key string (e.g., `YjrzaRWO...`).
-
-**How to add it:**
-*   **Browser Mode:** Type `config provider alchemy YjrzaRWO...`
-*   **CLI Mode:** Paste it into `public/config.json` next to `"apiKey"`.
+> If you already have a private key you want to use, type: `wallet import YOUR_PRIVATE_KEY`
 
 ---
 
-## 🎯 Phase 5: Your First Snipe
+## 4. Making it FAST (RPC Providers) ⚡
 
-Let's practice.
+By default, the bot uses free "public" connections, which can be slow. To make it super fast, get a free API key from a major provider.
 
-**Scenario:** You dragged a contract address from a Discord announcement.
-**Contract:** `0x123456...`
+**Supported Providers:**
+*   **Alchemy** (Best for speed/websockets)
+*   **QuickNode** (Excellent global coverage)
+*   **Infura** (Reliable backup)
+*   **Ankr** (Good alternative)
 
-1.  **Check the Target:**
+### ⚡ Managing Providers (New!)
+
+You can now save multiple providers and switch between them instantly.
+
+**1. Add a Provider:**
+
+*   **Alchemy:**
     ```bash
-    contract load 0x123456...
-    ```
-    *The bot tells you: "Price: 0.01 ETH, Supply: 500/1000".*
-
-2.  **Fire!**
-    ```bash
-    mint 1
-    ```
-    *(Buys 1 NFT).*
-
-3.  **Emergency (Turbo):**
-    If the mint is "hyped" and you need to pay extra gas to be first:
-    ```bash
-    mint 1 --turbo
+    config add alchemy YOUR_API_KEY
     ```
 
----
+*   **QuickNode:**
+    ```bash
+    config add quicknode YOUR_ENDPOINT_NAME YOUR_TOKEN
+    ```
+    *(Example: `config add quicknode twilight-smart-owl 73b...`)*
 
-## 📡 Special Feature: Latency Test
-Want to check your internet connection to the blockchain?
+*   **Infura / Ankr:**
+    ```bash
+    config add infura YOUR_KEY
+    ```
 
-Type:
+**2. Switch Active Provider:**
 ```bash
-ping
+config use quicknode
 ```
-It will show you the speed in milliseconds (ms).
-*   **Green (<100ms):** Excellent.
-*   **Yellow (<300ms):** Okay.
-*   **Red (>300ms):** Too slow for competitive sniping.
+
+**3. List Saved Providers:**
+```bash
+config list
+```
+*(Shows all saved providers and which one is active)*
+
+### 📊 Latency Benchmark
+
+Not sure which provider is fastest for you? Run a benchmark!
+
+```bash
+ping benchmark
+```
+*   This tests ALL your saved providers across Ethereum, Base, Optimism, Arbitrum, and Polygon.
+*   It highlights the fastest provider for each chain.
 
 ---
 
-## ❓ Troubleshooting
+## 5. How to Snipe (Minting)
 
-**"Command not found: npm"**
-*   You didn't install Node.js correctly (Phase 1). Restart your computer and try again.
+### Step 1: Find the Contract
+Find the contract address of the NFT you want (from OpenSea, Etherscan, Discord, etc.). It looks like `0x123...`.
 
-**"Transaction Reverted"**
-*   The sale might be Over, Paused, or you don't have enough ETH.
+### Step 2: Load the Contract
+Type this in the bot:
+```bash
+contract load 0x123...
+```
+(Replace `0x123...` with the real address).
+*   The bot will tell you the **Price**, **Supply**, and if it is **Active**.
 
-**"Ping is all red/failed"**
-*   Your API key might be wrong. Check Alchemy dashboard.
+### Step 3: MINT!
+When you are ready to buy, type:
+```bash
+mint 1
+```
+(Replace `1` with how many you want to buy).
 
 ---
 
-**Need help inside the bot?**
-Just type `help` or `guide` at any time.
+## 🚀 Advanced Tricks
 
-**Good luck, Sniper.** 🔫
+### Monitor Mode (Auto-Mint)
+If a sale is not live yet, you can tell the bot to watch it and buy instantly when it opens:
+```bash
+snipe monitor --qty 2
+```
+*   The bot will check every 2 seconds.
+*   As soon as it opens, it buys 2.
+
+### Turbo Mode (Maximum Speed)
+If you are fighting for a "hype" mint and need to be the fastest:
+```bash
+mint 1 --turbo
+```
+*   This skips safety checks.
+*   It pays 10x gas fee to jump the line.
+*   **Warning:** Only use this if you are sure!
+
+---
+
+---
+
+## 6. Getting Help
+
+If you ever get stuck or forget a command, you don't need to leave the terminal.
+
+*   **Quick Cheatsheet**: Type `help` or `?` to see a list of all commands.
+*   **Full Manual**: Type `guide` or `man` to read detailed explanations of every feature directly inside the bot.
+    *   Example: `guide mint` (Explains how minting works)
+    *   Example: `guide wallet` (Explains burner wallets)
+
+---
+
+## Common Commands Cheat Sheet
+
+| Command | What it does |
+| :--- | :--- |
+| `help` / `?` | Show list of commands. |
+| `guide` | Read the detailed user manual. |
+| `wallet new` | Create a new sniping wallet. |
+| `wallet balance` | See how much money is in the wallet. |
+| `config provider [name] [key]` | Set up a high-speed connection. |
+| `contract load [address]` | Prepare a contract for minting. |
+| `mint [N]` | Buy N tokens immediately. |
+| `mint [N] --turbo` | Buy N tokens **instantly** (unsafe mode). |
+| `snipe monitor` | Wait for sale to start, then buy. |
+| `snipe stop` | Stop monitoring. |
+| `clear` | Clear the screen. |

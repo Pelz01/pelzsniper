@@ -59,7 +59,10 @@ function getNodeTransport(chainId: number, config: HeadlessConfig): Transport {
         };
         const prefix = networks[chainId];
         if (prefix) {
-            return http(`https://${prefix}.infura.io/v3/${apiKey}`);
+            return fallback([
+                webSocket(`wss://${prefix}.infura.io/ws/v3/${apiKey}`),
+                http(`https://${prefix}.infura.io/v3/${apiKey}`)
+            ]);
         }
     }
 
@@ -75,7 +78,10 @@ function getNodeTransport(chainId: number, config: HeadlessConfig): Transport {
         };
         const prefix = networks[chainId];
         if (prefix) {
-            return http(`https://rpc.ankr.com/${prefix}/${apiKey}`);
+            return fallback([
+                webSocket(`wss://rpc.ankr.com/${prefix}/${apiKey}`),
+                http(`https://rpc.ankr.com/${prefix}/${apiKey}`)
+            ]);
         }
     }
 

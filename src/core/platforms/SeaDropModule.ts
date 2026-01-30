@@ -1,4 +1,5 @@
-import { createPublicClient, http, parseAbi, type Chain } from 'viem';
+import { createPublicClient, parseAbi, type Chain } from 'viem';
+import { getProviderTransport } from '../../config/transport';
 import { mainnet, sepolia, goerli, polygon, arbitrum, optimism, base } from 'viem/chains';
 import type { PlatformModule, PlatformContractInfo } from './PlatformManager';
 
@@ -61,7 +62,7 @@ export class SeaDropModule implements PlatformModule {
         const chain = CHAINS[chainId] || mainnet;
         const publicClient = createPublicClient({
             chain,
-            transport: http()
+            transport: getProviderTransport(chainId)
         });
 
         const contractAddress = address as `0x${string}`;
@@ -152,7 +153,7 @@ export class SeaDropModule implements PlatformModule {
         const chain = CHAINS[chainId] || mainnet;
         const publicClient = createPublicClient({
             chain,
-            transport: http()
+            transport: getProviderTransport(chainId)
         });
 
         const contractAddress = address as `0x${string}`;

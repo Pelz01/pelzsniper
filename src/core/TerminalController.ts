@@ -790,70 +790,200 @@ export class TerminalController {
     private async handleConfig(args: string[]) {
         const subCmd = args[0];
 
+        // Import provider storage functions
+        const {
+            addProvider, removeProvider, setActiveProvider, getActiveProvider,
+            getStoredProviders, getSupportedProviders
+        } = await import('../config/providerStorage');
+
+        // === CONFIG ADD ===
+        if (subCmd === 'add') {
+            const providerName = args[1]?.toLowerCase();
+
+            if (!providerName || !getSupportedProviders().includes(providerName)) {
+                this.info('Usage: config add <provider> <key>');
+                this.info('       config add quicknode <endpoint> <token>');
+                this.info('');
+                this.info('Providers: alchemy, infura, ankr, quicknode');
+                return;
+            }
+
+            if (providerName === 'quicknode') {
+                const endpoint = args[2];
+                const token = args[3];
+                if (!endpoint || !token) {
+                    this.error('Usage: config add quicknode <endpoint> <token>');
+                    this.info('Example: config add quicknode twilight-smart-owl 365b3c...');
+                    return;
+                }
+                addProvider('quicknode', { endpoint, token });
+                this.success(`QuickNode added! ⚡`);
+                this.info(`Endpoint: ${endpoint}.quiknode.pro`);
+            } else {
+                const key = args[2];
+                if (!key) {
+                    this.error(`Usage: config add ${providerName} <key>`);
+                    return;
+                }
+                addProvider(providerName, { key });
+                this.success(`${providerName.toUpperCase()} added! ⚡`);
+            }
+
+            // Auto-activate if first provider
+            if (!getActiveProvider()) {
+                setActiveProvider(providerName);
+                this.info(`Set as active provider.`);
+            } else {
+                this.info(`Use "config use ${providerName}" to activate.`);
+            }
+            return;
+        }
+
+        // === CONFIG USE ===
+        if (subCmd === 'use') {
+            const providerName = args[1]?.toLowerCase();
+
+            if (!providerName) {
+                this.info('Usage: config use <provider>');
+                this.info(`Active: ${getActiveProvider() || 'none'}`);
+                return;
+            }
+
+            if (providerName === 'public' || providerName === 'none') {
+                setActiveProvider('');
+                this.success('Switched to public RPCs.');
+                const { walletInfo } = useWalletStore.getState();
+                if (walletInfo) await this.initializeEngines(walletInfo.chainId);
+                return;
+            }
+
+            if (setActiveProvider(providerName)) {
+                this.success(`Switched to ${providerName.toUpperCase()}! ⚡`);
+                this.info('Re-connecting to apply changes...');
+                const { walletInfo } = useWalletStore.getState();
+                if (walletInfo) await this.initializeEngines(walletInfo.chainId);
+            } else {
+                this.error(`Provider "${providerName}" not found.`);
+                this.info('Use "config list" to see stored providers.');
+            }
+            return;
+        }
+
+        // === CONFIG LIST ===
+        if (subCmd === 'list') {
+            const providers = getStoredProviders();
+            const active = getActiveProvider();
+            const providerNames = Object.keys(providers);
+
+            this.term.writeln('');
+            this.term.writeln(this.color('  STORED PROVIDERS', '1;36'));
+            this.separator();
+
+            if (providerNames.length === 0) {
+                this.term.writeln('  No providers stored.');
+                this.info('Use "config add <provider> <key>" to add one.');
+            } else {
+                for (const name of providerNames) {
+                    const config = providers[name as keyof typeof providers];
+                    const isActive = name === active;
+                    const marker = isActive ? this.color('*', '32') : ' ';
+
+                    let display = '';
+                    if (name === 'quicknode' && config?.endpoint) {
+                        display = config.endpoint;
+                    } else if (config?.key) {
+                        display = `${config.key.substring(0, 6)}...${config.key.slice(-4)}`;
+                    }
+
+                    const line = `  ${marker} ${name.padEnd(12)} ${display}`;
+                    this.term.writeln(isActive ? this.color(line, '32') : line);
+                }
+            }
+
+            this.term.writeln('');
+            if (active) {
+                this.info(`Active: ${active.toUpperCase()}`);
+            } else {
+                this.info('Active: Public RPCs');
+            }
+            this.term.writeln('');
+            return;
+        }
+
+        // === CONFIG REMOVE ===
+        if (subCmd === 'remove') {
+            const providerName = args[1]?.toLowerCase();
+
+            if (!providerName) {
+                this.info('Usage: config remove <provider>');
+                return;
+            }
+
+            if (removeProvider(providerName)) {
+                this.success(`${providerName.toUpperCase()} removed.`);
+            } else {
+                this.error(`Provider "${providerName}" not found.`);
+            }
+            return;
+        }
+
+        // === CONFIG PROVIDER (legacy) ===
         if (subCmd === 'provider') {
-            const providerName = args[1];
+            const providerName = args[1]?.toLowerCase();
             const key = args[2];
 
             if (!providerName) {
-                this.info('Usage: config provider [alchemy|infura|ankr] <key>');
-                this.info('       config provider clear');
-
-                const currentProvider = localStorage.getItem('pelz_provider_name');
-                const currentKey = localStorage.getItem('pelz_provider_key');
-
-                if (currentProvider && currentKey) {
-                    this.term.writeln(`  Current: ${currentProvider.toUpperCase()} (${currentKey.substring(0, 4)}...)`);
-                } else {
-                    this.term.writeln('  Current: Public RPCs');
-                }
+                this.info('Legacy command. Use new syntax:');
+                this.info('  config add <provider> <key>');
+                this.info('  config use <provider>');
+                this.info('  config list');
                 return;
             }
 
             if (providerName === 'clear') {
-                localStorage.removeItem('pelz_provider_name');
-                localStorage.removeItem('pelz_provider_key');
-                localStorage.removeItem('pelz_alchemy_key');
-
-                this.success('Provider cleared. Using public RPCs.');
-            } else {
-                if (!['alchemy', 'infura', 'ankr'].includes(providerName)) {
-                    this.error('Invalid provider. Supported: alchemy, infura, ankr');
-                    return;
-                }
-
-                if (!key) {
-                    this.error('Missing API Key.');
-                    return;
-                }
-
-                localStorage.setItem('pelz_provider_name', providerName);
-                localStorage.setItem('pelz_provider_key', key);
-
-                // For backward compatibility
-                if (providerName === 'alchemy') {
-                    localStorage.setItem('pelz_alchemy_key', key);
-                } else {
-                    localStorage.removeItem('pelz_alchemy_key');
-                }
-
-                this.success(`${providerName.toUpperCase()} key saved! ⚡`);
-                this.info('RPCs updated. Re-connecting to apply changes...');
-
-                const walletInfo = useWalletStore.getState().walletInfo;
-                if (walletInfo) {
-                    await this.initializeEngines(walletInfo.chainId);
-                }
+                setActiveProvider('');
+                this.success('Switched to public RPCs.');
+                return;
             }
-            // Backward compatibility
-        } else if (subCmd === 'alchemy') {
+
+            // Handle as add + use
+            if (providerName === 'quicknode') {
+                const endpoint = args[2];
+                const token = args[3];
+                if (endpoint && token) {
+                    addProvider('quicknode', { endpoint, token });
+                    setActiveProvider('quicknode');
+                    this.success('QuickNode configured! ⚡');
+                    const { walletInfo } = useWalletStore.getState();
+                    if (walletInfo) await this.initializeEngines(walletInfo.chainId);
+                    return;
+                }
+            } else if (key) {
+                addProvider(providerName, { key });
+                setActiveProvider(providerName);
+                this.success(`${providerName.toUpperCase()} configured! ⚡`);
+                const { walletInfo } = useWalletStore.getState();
+                if (walletInfo) await this.initializeEngines(walletInfo.chainId);
+                return;
+            }
+
+            this.error('Missing credentials.');
+            return;
+        }
+
+        // === CONFIG ALCHEMY (legacy shortcut) ===
+        if (subCmd === 'alchemy') {
             await this.handleConfig(['provider', 'alchemy', args[1] || '']);
-        } else if (subCmd === 'rpc') {
+            return;
+        }
+
+        // === CONFIG RPC (custom per-chain) ===
+        if (subCmd === 'rpc') {
             const url = args[1];
             const { walletInfo } = useWalletStore.getState();
             const currentChainId = walletInfo?.chainId || 1;
 
             if (!url) {
-                // Show current custom RPC
                 const customRpc = localStorage.getItem(`pelz_custom_rpc_${currentChainId}`);
                 this.info('Usage: config rpc <url>     Set custom RPC for current chain');
                 this.info('       config rpc clear     Remove custom RPC');
@@ -872,7 +1002,6 @@ export class TerminalController {
                 localStorage.removeItem(`pelz_custom_rpc_${currentChainId}`);
                 this.success(`Custom RPC cleared for chain ${currentChainId}. Using default provider.`);
             } else {
-                // Validate URL format
                 if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('wss://')) {
                     this.error('Invalid URL. Must start with http://, https://, or wss://');
                     return;
@@ -887,69 +1016,56 @@ export class TerminalController {
                     await this.initializeEngines(currentChainId);
                 }
             }
-        } else {
-            this.info('Usage: config provider [alchemy|infura|ankr] <key>');
-            this.info('       config rpc <url>   (QuickNode, custom nodes)');
+            return;
         }
+
+        // === DEFAULT HELP ===
+        this.info('Config commands:');
+        this.info('  config add <provider> <key>    Add a provider');
+        this.info('  config use <provider>          Set active provider');
+        this.info('  config list                    Show stored providers');
+        this.info('  config remove <provider>       Remove a provider');
+        this.info('  config rpc <url>               Set custom RPC for chain');
     }
 
-    private handleRpc() {
-        const providerName = localStorage.getItem('pelz_provider_name');
-        const providerKey = localStorage.getItem('pelz_provider_key');
+    private async handleRpc() {
+        const { getActiveProvider, getProviderConfig } = await import('../config/providerStorage');
+        const { buildProviderUrls } = await import('../config/transport');
+
         const { walletInfo } = useWalletStore.getState();
         const currentChainId = walletInfo?.chainId || 1;
         const customRpc = localStorage.getItem(`pelz_custom_rpc_${currentChainId}`);
+        const activeProvider = getActiveProvider();
 
         this.term.writeln('');
         this.term.writeln(this.color('  ⚡ RPC STATUS', '1;36'));
         this.separator();
 
-        // Check custom RPC first (QuickNode, etc.)
+        // Check custom RPC first
         if (customRpc) {
             this.tableRow('Provider', 'Custom RPC', 15);
-            this.tableRow('Mode', 'Custom (QuickNode, etc.)', 15);
-            const hostname = customRpc.startsWith('wss://') ? customRpc.replace('wss://', '').split('/')[0] :
-                customRpc.startsWith('https://') ? customRpc.replace('https://', '').split('/')[0] :
-                    customRpc.split('/')[2] || customRpc;
+            this.tableRow('Mode', 'Custom', 15);
+            const hostname = customRpc.replace(/^(wss?|https?):\/\//, '').split('/')[0];
             this.tableRow('Endpoint', hostname.length > 30 ? hostname.substring(0, 30) + '...' : hostname, 15);
-        } else if (providerName && providerKey) {
-            this.tableRow('Provider', providerName.toUpperCase(), 15);
-            this.tableRow('API Key', `${providerKey.substring(0, 6)}...${providerKey.slice(-4)}`, 15);
+        } else if (activeProvider) {
+            const config = getProviderConfig(activeProvider);
+            this.tableRow('Provider', activeProvider.toUpperCase(), 15);
+
+            if (activeProvider === 'quicknode' && config?.endpoint) {
+                this.tableRow('Endpoint', config.endpoint, 15);
+            } else if (config?.key) {
+                this.tableRow('API Key', `${config.key.substring(0, 6)}...${config.key.slice(-4)}`, 15);
+            }
+
             this.tableRow('Mode', 'Premium (Fast)', 15);
 
-            // Show the actual URL being used
-            const networkMap: Record<string, Record<number, string>> = {
-                'alchemy': {
-                    1: 'eth-mainnet',
-                    8453: 'base-mainnet',
-                    42161: 'arb-mainnet',
-                },
-                'infura': {
-                    1: 'mainnet',
-                    8453: 'base-mainnet',
-                    42161: 'arbitrum-mainnet',
-                },
-                'ankr': {
-                    1: 'eth',
-                    8453: 'base',
-                    42161: 'arbitrum',
-                    137: 'polygon',
-                    10: 'optimism',
-                }
-            };
-            const prefix = networkMap[providerName]?.[currentChainId];
-            if (prefix) {
-                let url = '';
-                if (providerName === 'alchemy') {
-                    url = `${prefix}.g.alchemy.com`;
-                } else if (providerName === 'infura') {
-                    url = `${prefix}.infura.io`;
-                } else if (providerName === 'ankr') {
-                    url = `rpc.ankr.com/${prefix}`;
-                }
-                this.tableRow('Endpoint', url, 15);
+            // Show URL for current chain
+            const urls = buildProviderUrls(activeProvider, currentChainId);
+            if (urls.http) {
+                const hostname = urls.http.replace(/^https?:\/\//, '').split('/')[0];
+                this.tableRow('URL', hostname.length > 30 ? hostname.substring(0, 30) + '...' : hostname, 15);
             } else {
-                this.tableRow('Endpoint', '(fallback to public)', 15);
+                this.tableRow('URL', '(chain not supported)', 15);
             }
         } else {
             this.tableRow('Provider', 'Public RPC', 15);
@@ -964,61 +1080,45 @@ export class TerminalController {
 
         this.tableRow('Chain ID', currentChainId.toString(), 15);
         this.term.writeln('');
-        this.term.writeln(this.color('  Tip: Use "config rpc <url>" for QuickNode, "ping" to test.', '90'));
+        this.term.writeln(this.color('  Tip: "config list" to see providers, "ping benchmark" for latency.', '90'));
         this.term.writeln('');
     }
 
     private async handlePing(args: string[]) {
+        const { getActiveProvider } = await import('../config/providerStorage');
+        const { buildProviderUrls } = await import('../config/transport');
+
         const { walletInfo } = useWalletStore.getState();
         const currentChainId = walletInfo?.chainId || 1;
-        const providerName = localStorage.getItem('pelz_provider_name');
-        const providerKey = localStorage.getItem('pelz_provider_key');
-        const customRpc = localStorage.getItem(`pelz_custom_rpc_${currentChainId}`);
+
+        // === PING BENCHMARK ===
+        if (args[0] === 'benchmark' || args[0] === 'matrix') {
+            await this.handlePingBenchmark();
+            return;
+        }
 
         // Determine URL to test
         let testUrl: string | undefined;
-        if (args[0]) {
+
+        if (args[0] && args[0].startsWith('http')) {
+            // Direct URL provided
             testUrl = args[0];
         } else {
-            // Check custom RPC first (QuickNode)
+            // Check custom RPC first
+            const customRpc = localStorage.getItem(`pelz_custom_rpc_${currentChainId}`);
             if (customRpc) {
                 testUrl = customRpc.startsWith('wss://') ? customRpc.replace('wss://', 'https://') : customRpc;
-            }
-            // Then check provider
-            else if (providerName && providerKey) {
-                const networkMap: Record<string, Record<number, string>> = {
-                    'alchemy': {
-                        1: 'eth-mainnet',
-                        8453: 'base-mainnet',
-                        42161: 'arb-mainnet',
-                    },
-                    'infura': {
-                        1: 'mainnet',
-                        8453: 'base-mainnet',
-                        42161: 'arbitrum-mainnet',
-                    },
-                    'ankr': {
-                        1: 'eth',
-                        8453: 'base',
-                        42161: 'arbitrum',
-                        137: 'polygon',
-                        10: 'optimism',
-                    }
-                };
-                const prefix = networkMap[providerName]?.[currentChainId];
-                if (prefix) {
-                    if (providerName === 'alchemy') {
-                        testUrl = `https://${prefix}.g.alchemy.com/v2/${providerKey}`;
-                    } else if (providerName === 'infura') {
-                        testUrl = `https://${prefix}.infura.io/v3/${providerKey}`;
-                    } else if (providerName === 'ankr') {
-                        testUrl = `https://rpc.ankr.com/${prefix}/${providerKey}`;
-                    }
+            } else {
+                // Use active provider
+                const activeProvider = getActiveProvider();
+                if (activeProvider) {
+                    const urls = buildProviderUrls(activeProvider, currentChainId);
+                    testUrl = urls.http;
                 }
             }
 
+            // Fallback to public RPC
             if (!testUrl) {
-                // Fallback to public RPC from NETWORKS
                 const networks = Object.values(NETWORKS);
                 const network = networks.find((n: NetworkConfig) => n.id === currentChainId);
                 testUrl = network?.rpc;
@@ -1027,6 +1127,7 @@ export class TerminalController {
 
         if (!testUrl) {
             this.error('No RPC URL available to test.');
+            this.info('Use "config add <provider> <key>" to add one.');
             return;
         }
 
@@ -1056,5 +1157,103 @@ export class TerminalController {
         } catch (e: any) {
             this.error(`Ping failed: ${e.message}`);
         }
+    }
+
+    private async handlePingBenchmark() {
+        const { getStoredProviders } = await import('../config/providerStorage');
+        const { buildProviderUrls } = await import('../config/transport');
+
+        const providers = getStoredProviders();
+        const providerNames = Object.keys(providers);
+
+        if (providerNames.length === 0) {
+            this.error('No providers stored.');
+            this.info('Use "config add <provider> <key>" to add providers first.');
+            return;
+        }
+
+        // Test chains
+        const testChains = [
+            { id: 1, name: 'Ethereum' },
+            { id: 8453, name: 'Base' },
+            { id: 42161, name: 'Arbitrum' },
+            { id: 137, name: 'Polygon' },
+            { id: 10, name: 'Optimism' },
+        ];
+
+        this.term.writeln('');
+        this.term.writeln(this.color('  LATENCY BENCHMARK', '1;36'));
+        this.info(`Testing ${providerNames.length} provider(s) across ${testChains.length} chains...`);
+        this.term.writeln('');
+
+        // Build header
+        const colWidth = 12;
+        let header = '  Chain'.padEnd(14);
+        for (const name of providerNames) {
+            header += name.substring(0, colWidth - 1).padEnd(colWidth);
+        }
+        this.term.writeln(this.color(header, '1;37'));
+        this.separator();
+
+        // Results matrix
+        const results: Record<string, Record<number, number | null>> = {};
+        for (const name of providerNames) {
+            results[name] = {};
+        }
+
+        // Test each chain
+        for (const chain of testChains) {
+            let row = `  ${chain.name}`.padEnd(14);
+
+            // Find fastest for this chain
+            let fastest = { provider: '', latency: Infinity };
+
+            for (const name of providerNames) {
+                const urls = buildProviderUrls(name, chain.id);
+
+                if (!urls.http) {
+                    row += 'N/A'.padEnd(colWidth);
+                    results[name][chain.id] = null;
+                    continue;
+                }
+
+                try {
+                    const start = performance.now();
+                    const response = await fetch(urls.http, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 }),
+                    });
+
+                    if (!response.ok) throw new Error('Failed');
+
+                    const latency = Math.round(performance.now() - start);
+                    results[name][chain.id] = latency;
+
+                    if (latency < fastest.latency) {
+                        fastest = { provider: name, latency };
+                    }
+
+                    // Color code latency
+                    const color = latency < 60 ? '32' : latency < 150 ? '33' : '31';
+                    row += this.color(`${latency}ms`.padEnd(colWidth), color);
+                } catch {
+                    row += this.color('ERR'.padEnd(colWidth), '31');
+                    results[name][chain.id] = null;
+                }
+            }
+
+            // Mark fastest with ⚡
+            if (fastest.provider && fastest.latency < Infinity) {
+                const idx = 14 + providerNames.indexOf(fastest.provider) * colWidth;
+                row = row.substring(0, idx) + this.color('⚡ ', '33') + row.substring(idx);
+            }
+
+            this.term.writeln(row);
+        }
+
+        this.term.writeln('');
+        this.term.writeln(this.color('  ⚡ = Fastest   🟢 <60ms   🟡 60-150ms   🔴 >150ms', '90'));
+        this.term.writeln('');
     }
 }

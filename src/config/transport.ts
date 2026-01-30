@@ -1,18 +1,111 @@
 /**
  * Centralized RPC Transport Configuration
- * Handles multi-provider support (Alchemy, Infura, Ankr)
+ * Handles multi-provider support (Alchemy, Infura, Ankr, QuickNode)
  */
 import { http, webSocket, fallback, type Transport } from 'viem';
+import { getActiveProvider, getProviderConfig, migrateOldStorage } from './providerStorage';
+
+// Chain network mappings for each provider
+export const CHAIN_MAPPINGS = {
+    alchemy: {
+        1: 'eth-mainnet',
+        11155111: 'eth-sepolia',
+        137: 'polygon-mainnet',
+        42161: 'arb-mainnet',
+        10: 'opt-mainnet',
+        8453: 'base-mainnet',
+    } as Record<number, string>,
+
+    infura: {
+        1: 'mainnet',
+        11155111: 'sepolia',
+        137: 'polygon-mainnet',
+        42161: 'arbitrum-mainnet',
+        10: 'optimism-mainnet',
+        8453: 'base-mainnet',
+    } as Record<number, string>,
+
+    ankr: {
+        1: 'eth',
+        11155111: 'eth_sepolia',
+        137: 'polygon',
+        42161: 'arbitrum',
+        10: 'optimism',
+        8453: 'base',
+    } as Record<number, string>,
+
+    quicknode: {
+        1: '',              // Mainnet: endpoint.quiknode.pro
+        8453: 'base-mainnet',
+        42161: 'arbitrum-mainnet',
+        137: 'polygon-mainnet',
+        10: 'optimism-mainnet',
+        11155111: 'eth-sepolia',
+    } as Record<number, string>,
+};
+
+/**
+ * Build RPC URL for a provider and chain
+ * Returns both HTTP and WSS URLs
+ */
+export function buildProviderUrls(provider: string, chainId: number): { http?: string; wss?: string } {
+    const config = getProviderConfig(provider);
+    if (!config) return {};
+
+    switch (provider) {
+        case 'alchemy': {
+            const prefix = CHAIN_MAPPINGS.alchemy[chainId];
+            if (!prefix || !config.key) return {};
+            return {
+                http: `https://${prefix}.g.alchemy.com/v2/${config.key}`,
+                wss: `wss://${prefix}.g.alchemy.com/v2/${config.key}`,
+            };
+        }
+
+        case 'infura': {
+            const prefix = CHAIN_MAPPINGS.infura[chainId];
+            if (!prefix || !config.key) return {};
+            return {
+                http: `https://${prefix}.infura.io/v3/${config.key}`,
+                wss: `wss://${prefix}.infura.io/ws/v3/${config.key}`,
+            };
+        }
+
+        case 'ankr': {
+            const prefix = CHAIN_MAPPINGS.ankr[chainId];
+            if (!prefix || !config.key) return {};
+            return {
+                http: `https://rpc.ankr.com/${prefix}/${config.key}`,
+                wss: `wss://rpc.ankr.com/${prefix}/${config.key}`,
+            };
+        }
+
+        case 'quicknode': {
+            const chainPrefix = CHAIN_MAPPINGS.quicknode[chainId];
+            if (chainPrefix === undefined || !config.endpoint || !config.token) return {};
+            const domain = chainPrefix ? `${config.endpoint}.${chainPrefix}.quiknode.pro` : `${config.endpoint}.quiknode.pro`;
+            return {
+                http: `https://${domain}/${config.token}`,
+                wss: `wss://${domain}/${config.token}`,
+            };
+        }
+
+        default:
+            return {};
+    }
+}
 
 /**
  * Get Transport based on Configured Provider
- * Checks localStorage for provider name and API key
+ * Uses new multi-provider storage format
  */
 export const getProviderTransport = (chainId: number): Transport => {
-    // Check for custom RPC override first (QuickNode, custom nodes, etc.)
+    // Migrate old storage format on first access
+    migrateOldStorage();
+
+    // Check for custom RPC override first
     const customRpc = localStorage.getItem(`pelz_custom_rpc_${chainId}`);
     if (customRpc) {
-        // Support WebSocket URLs
         if (customRpc.startsWith('wss://')) {
             return fallback([
                 webSocket(customRpc),
@@ -22,65 +115,21 @@ export const getProviderTransport = (chainId: number): Transport => {
         return http(customRpc);
     }
 
-    // Check for specific provider override
-    const providerName = localStorage.getItem('pelz_provider_name');
-    const apiKey = localStorage.getItem('pelz_provider_key') || localStorage.getItem('pelz_alchemy_key');
+    // Get active provider
+    const activeProvider = getActiveProvider();
+    if (!activeProvider) return http();
 
-    if (!apiKey) return http();
+    // Build URLs for active provider
+    const urls = buildProviderUrls(activeProvider, chainId);
+    if (!urls.http) return http();
 
-    // -- ALCHEMY --
-    if (providerName === 'alchemy' || (!providerName && apiKey)) {
-        const networks: Record<number, string> = {
-            1: 'eth-mainnet',
-            11155111: 'eth-sepolia',
-            137: 'polygon-mainnet',
-            42161: 'arb-mainnet',
-            10: 'opt-mainnet',
-            8453: 'base-mainnet',
-        };
-        const prefix = networks[chainId];
-        if (prefix) {
-            return fallback([
-                webSocket(`wss://${prefix}.g.alchemy.com/v2/${apiKey}`),
-                http(`https://${prefix}.g.alchemy.com/v2/${apiKey}`)
-            ]);
-        }
+    // Return transport with WSS primary, HTTP fallback
+    if (urls.wss) {
+        return fallback([
+            webSocket(urls.wss),
+            http(urls.http)
+        ]);
     }
 
-    // -- INFURA --
-    if (providerName === 'infura') {
-        const networks: Record<number, string> = {
-            1: 'mainnet',
-            11155111: 'sepolia',
-            137: 'polygon-mainnet',
-            42161: 'arbitrum-mainnet',
-            10: 'optimism-mainnet',
-            8453: 'base-mainnet',
-        };
-        const prefix = networks[chainId];
-        if (prefix) {
-            return fallback([
-                http(`https://${prefix}.infura.io/v3/${apiKey}`)
-            ]);
-        }
-    }
-
-    // -- ANKR --
-    if (providerName === 'ankr') {
-        const networks: Record<number, string> = {
-            1: 'eth',
-            11155111: 'eth_sepolia',
-            137: 'polygon',
-            42161: 'arbitrum',
-            10: 'optimism',
-            8453: 'base',
-        };
-        const prefix = networks[chainId];
-        if (prefix) {
-            return http(`https://rpc.ankr.com/${prefix}/${apiKey}`);
-        }
-    }
-
-    // Default fallback to public HTTP
-    return http();
+    return http(urls.http);
 };
